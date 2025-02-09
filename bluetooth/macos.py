@@ -28,7 +28,8 @@ def discover_devices(duration=8, flush_cache=True, lookup_names=False,
 
 
 def lookup_name(address, timeout=10):
-    print("TODO: implement")
+    return lightblue.finddevicename(address)
+
 
 # TODO: After a little looking around, it seems that we can go into some of the 
 # lightblue internals and enhance the amount of SDP information that is returned 
@@ -44,7 +45,7 @@ def find_service(name=None, uuid=None, address=None):
     results = []
 
     for address in addresses:
-        # print "[DEBUG] Browsing services on %s..." % (addr)
+        #print("[DEBUG] Browsing services on %s..." % (address))
 
         dresults = lightblue.findservices(addr=address, name=name)
 
