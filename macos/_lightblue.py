@@ -24,9 +24,8 @@ import Foundation
 import AppKit
 import objc
 from objc import super
+import IOBluetooth
 
-from . import _IOBluetooth
-from . import _LightAquaBlue
 from . import _lightbluecommon
 from . import _macutil
 from . import _bluetoothsockets
@@ -35,12 +34,7 @@ from . import _bluetoothsockets
 # public attributes
 __all__ = ("finddevices", "findservices", "finddevicename",
            "selectdevice", "selectservice",
-           "gethostaddr", "gethostclass",
-           "socket",
-           "advertise", "stopadvertise")
-
-# details of advertised services
-__advertised = {}
+           "socket")
 
 
 def finddevices(getnames=True, length=10):
@@ -50,11 +44,7 @@ def finddevices(getnames=True, length=10):
     return devices
 
 
-def findservices(addr=None, name=None, servicetype=None):
-    if servicetype not in (_lightbluecommon.RFCOMM, _lightbluecommon.OBEX, None):
-        raise ValueError("servicetype must be RFCOMM, OBEX or None, was %s" % \
-            servicetype)
-
+def findservices(addr=None, name=None, uuid=None):
     if addr is None:
         try:
             founddevices = finddevices()
@@ -63,14 +53,13 @@ def findservices(addr=None, name=None, servicetype=None):
                     "error while finding devices: " + str(e)
             raise _lightbluecommon.BluetoothError(msg)
 
-        #print(founddevices)
         addresses = [dev[0] for dev in founddevices]
     else:
         addresses = [addr]
 
     services = []
     for devaddr in addresses:
-        iobtdevice = _IOBluetooth.IOBluetoothDevice.withAddressString_(devaddr)
+        iobtdevice = IOBluetooth.IOBluetoothDevice.withAddressString_(devaddr)
         if not iobtdevice and addr is not None:
             msg = "findservices() failed, " +\
                     "failed to find " + devaddr
@@ -95,17 +84,8 @@ def findservices(addr=None, name=None, servicetype=None):
                     # or should I use cached services instead of warning?
                     # but sometimes the cached ones are totally wrong.
 
-            # if searching for RFCOMM, exclude OBEX services
-            if servicetype == _lightbluecommon.RFCOMM:
-                uuidbad = _macutil.PROTO_UUIDS.get(_lightbluecommon.OBEX)
-            else:
-                uuidbad = None
+            filtered = _searchservices(iobtdevice, name=name, uuid=uuid)
 
-            filtered = _searchservices(iobtdevice, name=name,
-                uuid=_macutil.PROTO_UUIDS.get(servicetype),
-                uuidbad=uuidbad)
-
-            #print "unfiltered:", iobtdevice.getServices()
             services.extend([_getservicetuple(s) for s in filtered])
         finally:
             # close baseband connection (not sure if this is necessary, but
@@ -119,46 +99,18 @@ def finddevicename(address, usecache=True):
     if not _lightbluecommon._isbtaddr(address):
         raise TypeError("%s is not a valid bluetooth address" % str(address))
 
-    if address == gethostaddr():
-        return _gethostname()
-
-    device = _IOBluetooth.IOBluetoothDevice.withAddressString_(address)
+    device = IOBluetooth.IOBluetoothDevice.withAddressString_(address)
     if usecache:
-        name = device.getName()
+        name = device.name()
         if name is not None:
             return name
 
     # do name request with timeout of 10 seconds
     result = device.remoteNameRequest_withPageTimeout_(None, 10000)
     if result == _macutil.kIOReturnSuccess:
-        return device.getName()
+        return device.name()
     raise _lightbluecommon.BluetoothError(
         "Could not find device name for %s" % address)
-
-
-### local device ###
-
-def gethostaddr():
-    addr = _LightAquaBlue.BBLocalDevice.getAddressString()
-    if addr is not None:
-        # PyObjC returns all strings as unicode, but the address doesn't need
-        # to be unicode cos it's just hex values
-        return _macutil.formatdevaddr(addr)
-    raise _lightbluecommon.BluetoothError("Cannot read local device address")
-
-
-def gethostclass():
-    cod = _LightAquaBlue.BBLocalDevice.getClassOfDevice()
-    if cod != -1:
-        return int(cod)
-    raise _lightbluecommon.BluetoothError("Cannot read local device class")
-
-
-def _gethostname():
-    name = _LightAquaBlue.BBLocalDevice.getName()
-    if name is not None:
-        return name
-    raise _lightbluecommon.BluetoothError("Cannot read local device name")
 
 
 ### socket ###
@@ -166,63 +118,12 @@ def _gethostname():
 def socket(proto=_lightbluecommon.RFCOMM):
     return _bluetoothsockets._getsocketobject(proto)
 
-### advertising services ###
-
-
-def advertise(name, sock, servicetype, uuid=None):
-    if not isinstance(name, str):
-        raise TypeError("name must be string, was %s" % type(name))
-
-    # raises exception if socket is not bound
-    boundchannelID = sock._getport()
-
-    # advertise the service
-    if servicetype == _lightbluecommon.RFCOMM or servicetype == _lightbluecommon.OBEX:
-        try:
-            result, finalchannelID, servicerecordhandle = _LightAquaBlue.BBServiceAdvertiser\
-                    .addRFCOMMServiceDictionary_withName_UUID_channelID_serviceRecordHandle_(
-                            _LightAquaBlue.BBServiceAdvertiser.serialPortProfileDictionary(),
-                name, uuid, None, None)
-        except:
-            result, finalchannelID, servicerecordhandle = _LightAquaBlue.BBServiceAdvertiser\
-                    .addRFCOMMServiceDictionary_withName_UUID_channelID_serviceRecordHandle_(
-                            _LightAquaBlue.BBServiceAdvertiser.serialPortProfileDictionary(),
-                name, uuid)
-    else:
-        raise ValueError("servicetype must be either RFCOMM or OBEX")
-
-    if result != _macutil.kIOReturnSuccess:
-        raise _lightbluecommon.BluetoothError(
-                result, "Error advertising service")
-    if boundchannelID and boundchannelID != finalchannelID:
-        msg = "socket bound to unavailable channel (%d), " % boundchannelID +\
-              "use channel value of 0 to bind to dynamically assigned channel"
-        raise _lightbluecommon.BluetoothError(msg)
-
-    # note service record handle, so that the service can be stopped later
-    __advertised[id(sock)] = servicerecordhandle
-
-
-def stopadvertise(sock):
-    if sock is None:
-        raise TypeError("Given socket is None")
-
-    servicerecordhandle = __advertised.get(id(sock))
-    if servicerecordhandle is None:
-        raise _lightbluecommon.BluetoothError("no service advertised")
-
-    result = _LightAquaBlue.BBServiceAdvertiser.removeService_(servicerecordhandle)
-    if result != _macutil.kIOReturnSuccess:
-        raise _lightbluecommon.BluetoothError(
-            result, "Error stopping advertising of service")
-
 
 ### GUI ###
 
-
 def selectdevice():
-    from . import _IOBluetoothUI
-    gui = _IOBluetoothUI.IOBluetoothDeviceSelectorController.deviceSelector()
+    import IOBluetoothUI
+    gui = IOBluetoothUI.IOBluetoothDeviceSelectorController.deviceSelector()
 
     # try to bring GUI to foreground by setting it as floating panel
     # (if this is called from pyobjc app, it would automatically be in foreground)
@@ -241,7 +142,7 @@ def selectdevice():
             # sometimes the baseband connection stays open which causes
             # problems with connections w so close it here, see if this fixes
             # it
-            dev = _IOBluetooth.IOBluetoothDevice.withAddressString_(devinfo[0])
+            dev = IOBluetooth.IOBluetoothDevice.withAddressString_(devinfo[0])
             if dev.isConnected():
                 dev.closeConnection()
 
@@ -252,8 +153,8 @@ def selectdevice():
 
 
 def selectservice():
-    from . import _IOBluetoothUI
-    gui = _IOBluetoothUI.IOBluetoothServiceBrowserController.serviceBrowserController_(
+    import IOBluetoothUI
+    gui = IOBluetoothUI.IOBluetoothServiceBrowserController.serviceBrowserController_(
             _macutil.kIOBluetoothServiceBrowserControllerOptionsNone)
 
     # try to bring GUI to foreground by setting it as floating panel
@@ -273,7 +174,7 @@ def selectservice():
             # sometimes the baseband connection stays open which causes
             # problems with connections ... so close it here, see if this fixes
             # it
-            dev = _IOBluetooth.IOBluetoothDevice.deviceWithAddressString_(serviceinfo[0])
+            dev = IOBluetooth.IOBluetoothDevice.deviceWithAddressString_(serviceinfo[0])
             if dev.isConnected():
                 dev.closeConnection()
 
@@ -393,7 +294,7 @@ class _AsyncDeviceInquiry(Foundation.NSObject):
     # NSObject init, not python __init__
     def init(self):
         try:
-            attr = _IOBluetooth.IOBluetoothDeviceInquiry
+            attr = IOBluetooth.IOBluetoothDeviceInquiry
         except AttributeError:
             raise ImportError("Cannot find IOBluetoothDeviceInquiry class " +\
                 "to perform device discovery. This class was introduced in " +\
@@ -401,7 +302,7 @@ class _AsyncDeviceInquiry(Foundation.NSObject):
 
         self = super().init()
         self._inquiry = \
-            _IOBluetooth.IOBluetoothDeviceInquiry.inquiryWithDelegate_(self)
+            IOBluetooth.IOBluetoothDeviceInquiry.inquiryWithDelegate_(self)
 
         # callbacks
         self.cb_started = None
@@ -481,37 +382,23 @@ class _AsyncDeviceInquiry(Foundation.NSObject):
 
 ### utility methods ###
 
-
-def _searchservices(device, name=None, uuid=None, uuidbad=None):
+def _searchservices(device, name=None, uuid=None):
     """
     Searches the given IOBluetoothDevice using the specified parameters.
     Returns an empty list if the device has no services.
 
-    uuid should be IOBluetoothSDPUUID object.
+    uuid should be a 16-bit UUID.
     """
-    if not isinstance(device, _IOBluetooth.IOBluetoothDevice):
+    if not isinstance(device, IOBluetooth.IOBluetoothDevice):
         raise ValueError("device must be IOBluetoothDevice, was %s" % \
             type(device))
 
     services = []
-    allservices = device.getServices()
-    if uuid:
-        gooduuids = (uuid, )
-    else:
-        gooduuids = ()
-    if uuidbad:
-        baduuids = (uuidbad, )
-    else:
-        baduuids = ()
-
-    if allservices is not None:
-        for s in allservices:
-            if gooduuids and not s.hasServiceFromArray_(gooduuids):
-                continue
-            if baduuids and s.hasServiceFromArray_(baduuids):
-                continue
-            if name is None or s.getServiceName() == name:
-                services.append(s)
+    for s in device.services():
+        if uuid and not s.hasServiceFromArray_([IOBluetooth.IOBluetoothSDPUUID.uuid16_(uuid)]):
+            continue
+        if name is None or s.getServiceName() == name:
+            services.append(s)
     return services
 
 def _getdevicetuple(iobtdevice):
@@ -526,9 +413,10 @@ def _getdevicetuple(iobtdevice):
 
 def _getservicetuple(servicerecord):
     """
-    Returns a (device-addr, service-channel, service-name) tuple from the given
-    IOBluetoothSDPServiceRecord.
+    Returns a (device-addr, service-channel, service-name, attributes) tuple
+    from the given IOBluetoothSDPServiceRecord.
     """
+    # TODO: get service attributes with servicerecord.getAttributes
     addr = _macutil.formatdevaddr(servicerecord.getDevice().getAddressString())
     name = servicerecord.getServiceName()
     try:
@@ -542,5 +430,5 @@ def _getservicetuple(servicerecord):
             result, channel = servicerecord.getL2CAPPSM_()
         if result != _macutil.kIOReturnSuccess:
             channel = None
-    return (addr, channel, name)
+    return (addr, channel, name, servicerecord.attributes())
 

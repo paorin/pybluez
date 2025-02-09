@@ -159,7 +159,6 @@ _docstrings = {
 # import implementation modules
 from ._lightblue import *
 from ._lightbluecommon import *
-from . import obex     # plus submodule
 
 # set docstrings
 from . import _lightblue

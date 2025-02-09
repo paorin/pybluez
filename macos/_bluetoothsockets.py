@@ -33,8 +33,8 @@ import types
 
 import objc
 import Foundation
+import IOBluetooth
 
-from . import _IOBluetooth
 from . import _lightbluecommon
 from . import _macutil
 from ._LightAquaBlue import BBServiceAdvertiser, BBBluetoothChannelDelegate
@@ -323,7 +323,7 @@ class _BluetoothSocket:
         _checkaddrpair(address)
 
         # open a connection to device
-        self.__remotedevice = _IOBluetooth.IOBluetoothDevice.withAddressString_(address[0])
+        self.__remotedevice = IOBluetooth.IOBluetoothDevice.withAddressString_(address[0])
 
         if not self.__remotedevice.isConnected():
             if self.__timeout is None:
@@ -763,7 +763,6 @@ class _ChannelEventListener(Foundation.NSObject):
     IOBluetoothRFCOMMChannel or IOBluetoothL2CAPChannel, and makes callbacks to
     a specified object when events occur.
     """
-    
     # note this is a NSObject "init", not a python object "__init__"
     def initWithDelegate_(self, cb_obj):
         """
@@ -856,9 +855,9 @@ class _ChannelServerEventListener(Foundation.NSObject):
         self.__usernotif = None
 
         if proto == _lightbluecommon.RFCOMM:
-            usernotif = _IOBluetooth.IOBluetoothRFCOMMChannel.registerForChannelOpenNotifications_selector_withChannelID_direction_(self, "newChannelOpened:channel:", port, _macutil.kIOBluetoothUserNotificationChannelDirectionIncoming)
+            usernotif = IOBluetooth.IOBluetoothRFCOMMChannel.registerForChannelOpenNotifications_selector_withChannelID_direction_(self, "newChannelOpened:channel:", port, _macutil.kIOBluetoothUserNotificationChannelDirectionIncoming)
         elif proto == _lightbluecommon.L2CAP:
-            usernotif = _IOBluetooth.IOBluetoothL2CAPChannel.registerForChannelOpenNotifications_selector_withPSM_direction_(self, "newChannelOpened:channel:", port, _macutil.kIOBluetoothUserNotificationChannelDirectionIncoming)
+            usernotif = IOBluetooth.IOBluetoothL2CAPChannel.registerForChannelOpenNotifications_selector_withPSM_direction_(self, "newChannelOpened:channel:", port, _macutil.kIOBluetoothUserNotificationChannelDirectionIncoming)
 
         if usernotif is None:
             raise _socket.error("Unable to register for channel-" + \

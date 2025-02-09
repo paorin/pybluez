@@ -31,62 +31,52 @@ def lookup_name(address, timeout=10):
     return lightblue.finddevicename(address)
 
 
-# TODO: After a little looking around, it seems that we can go into some of the 
-# lightblue internals and enhance the amount of SDP information that is returned 
-# (e.g., CID/PSM, protocol, provider information).
-#
-# See: _searchservices() in _lightblue.py
 def find_service(name=None, uuid=None, address=None):
-    if address is not None:
-        addresses = [address]
-    else:
-        addresses = discover_devices(lookup_names=False)
-
     results = []
 
-    for address in addresses:
-        #print("[DEBUG] Browsing services on %s..." % (address))
+    services = lightblue.findservices(addr=address, name=name, uuid=uuid)
 
-        dresults = lightblue.findservices(addr=address, name=name)
+    for tup in services:
+        service = {}
 
-        for tup in dresults:
-            service = {}
+        # LightBlue performs a service discovery and returns the found
+        # services as a list of (device-address, service-port,
+        # service-name, attributes) tuples.
+        service["host"] = tup[0]
+        service["port"] = tup[1]
+        service["name"] = tup[2]
 
-            # LightBlue performs a service discovery and returns the found
-            # services as a list of (device-address, service-port,
-            # service-name) tuples.
-            service["host"] = tup[0]
-            service["port"] = tup[1]
-            service["name"] = tup[2]
+        service["description"] = None
+        if SERVICE_DESCRIPTION_ATTRID in tup[3]:
+            service["description"] = tup[3][SERVICE_DESCRIPTION_ATTRID]
+        service["provider"] = None
+        if PROVIDER_NAME_ATTRID in tup[3]:
+            service["provider"] = tup[3][PROVIDER_NAME_ATTRID]
+        service["protocol"] = None
+        if PROTOCOL_DESCRIPTOR_LIST_ATTRID in tup[3]:
+            service["protocol"] = tup[3][PROTOCOL_DESCRIPTOR_LIST_ATTRID]
+        service["service-classes"] = []
+        if SERVICE_CLASS_ID_LIST_ATTRID in tup[3]:
+            service["service-classes"] = tup[3][SERVICE_CLASS_ID_LIST_ATTRID]
+        service["profiles"] = []
+        if BLUETOOTH_PROFILE_DESCRIPTOR_LIST_ATTRID in tup[3]:
+            service["profiles"] = tup[3][BLUETOOTH_PROFILE_DESCRIPTOR_LIST_ATTRID]
+        service["service-id"] = None
+        if SERVICE_ID_ATTRID in tup[3]:
+            service["service-id"] = tup[3][SERVICE_ID_ATTRID]
 
-            # Add extra keys for compatibility with PyBluez API.
-            service["description"] = None
-            service["provider"] = None
-            service["protocol"] = None
-            service["service-classes"] = []
-            service["profiles"] = []
-            service["service-id"] = None
-
-            results.append(service)
+        results.append(service)
 
     return results
 
 
-def read_local_bdaddr():
-    return [lightblue.gethostaddr()]
-
-
 def advertise_service(sock, name, service_id="", service_classes=None,
         profiles=None, provider="", description="", protocols=None):
-
-    if protocols is None or protocols == RFCOMM:
-        protocols = [lightblue.RFCOMM]
-
-    lightblue.advertise(name, sock, protocols[0], service_id)
+    raise NotImplementedError("Not implemented yet for MAC OS")
 
 
 def stop_advertising(sock):
-    lightblue.stop_advertising(sock)
+    raise NotImplementedError("Not implemented yet for MAC OS")
 
 
 # ============================= BluetoothSocket ============================== #
@@ -153,4 +143,4 @@ class BluetoothSocket:
 
 class DeviceDiscoverer:
     def __init__ (self):
-        raise NotImplementedError
+        raise NotImplementedError("Not implemented yet for MAC OS")

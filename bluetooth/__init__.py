@@ -26,6 +26,9 @@ discover_devices.__doc__ = \
 
     Parameters
     ----------
+    duration : int
+        Number of seconds the inquiry will search for in-range devices. (the default is 8).
+
     lookup_names : bool
         When set to True :func:`discover_devices` also attempts to look up the display name of each
         detected device. (the default is False).
@@ -174,16 +177,15 @@ find_service.__doc__ = \
     Parameters
     ----------
     name: str or None
-        The friendly name of a Bluetooth device. 
+        The name of a Bluetooth service. 
 
     uuid : str or None
-        A valid 16-bit or 128-bit UUID.
+        A valid 16-bit UUID of a service.
 
         ============  ====================================
         UUID Type     Format
         ------------  ------------------------------------
         Short 16-bit  XXXX
-        Full 128-bit  XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX
         ============  ====================================
 
         where each 'X' is a hexadecimal digit. 
@@ -192,6 +194,8 @@ find_service.__doc__ = \
         The Bluetooth address of a device or "localhost". 
         If "localhost" is provided the function will search for Bluetooth services on the
         local machine.
+        If None the function will search for Bluetooth services on all discoverable
+        devices.
     
     Returns
     -------

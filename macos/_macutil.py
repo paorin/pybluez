@@ -20,10 +20,10 @@
 from Foundation import NSObject, NSDate, NSPoint, NSDefaultRunLoopMode, NSTimer
 from AppKit import NSApplication, NSEvent, NSApplicationDefined, NSAnyEventMask
 import objc
+import IOBluetooth
 
 import time
 
-from . import _IOBluetooth
 from . import _lightbluecommon
 
 # for mac os 10.5
@@ -33,7 +33,7 @@ try:
 except:
     pass
 
-# values of constants used in _IOBluetooth.framework
+# values of constants used in IOBluetooth.framework
 kIOReturnSuccess = 0       # defined in <IOKit/IOReturn.h>
 kIOBluetoothUserNotificationChannelDirectionIncoming = 1
         # defined in <IOBluetooth/IOBluetoothUserLib.h>
@@ -49,8 +49,8 @@ WAIT_MAX_TIMEOUT = 3
 
 # IOBluetoothSDPUUID objects for RFCOMM and OBEX protocol UUIDs
 PROTO_UUIDS = {
-    _lightbluecommon.RFCOMM: _IOBluetooth.IOBluetoothSDPUUID.uuid16_(0x0003),
-    _lightbluecommon.OBEX: _IOBluetooth.IOBluetoothSDPUUID.uuid16_(0x0008)
+    _lightbluecommon.RFCOMM: IOBluetooth.IOBluetoothSDPUUID.uuid16_(0x0003),
+    _lightbluecommon.OBEX: IOBluetooth.IOBluetoothSDPUUID.uuid16_(0x0008)
 }
 
 
@@ -63,13 +63,17 @@ def formatdevaddr(addr):
     """
     # make uppercase cos PyS60 & Linux seem to always return uppercase
     # addresses
+    # can safely encode to ascii cos BT addresses are only in hex (pyobjc
+    # returns all strings in unicode)
+    # return addr.replace("-", ":").encode('ascii').upper()
+    # no longer need to encode in Python 3, as str is unicode
     return addr.replace("-", ":").upper()
 
 def createbtdevaddr(addr):
     # in mac 10.5, can use BluetoothDeviceAddress directly
     chars = btaddrtochars(addr)
     try:
-        btdevaddr = _IOBluetooth.BluetoothDeviceAddress(chars)
+        btdevaddr = IOBluetooth.BluetoothDeviceAddress(chars)
         return btdevaddr
     except:
         return chars
@@ -85,7 +89,7 @@ def btaddrtochars(addr):
         >>> chars = btaddrtochars("00:0e:0a:00:a2:00")
         >>> chars
         (0, 14, 10, 0, 162, 0)
-        >>> device = _IOBluetooth.IOBluetoothDevice.withAddress_(chars)
+        >>> device = IOBluetooth.IOBluetoothDevice.withAddress_(chars)
         >>> type(device)
         <objective-c class IOBluetoothDevice at 0xa4024988>
         >>> device.getAddressString()
