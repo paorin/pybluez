@@ -63,9 +63,7 @@ def formatdevaddr(addr):
     """
     # make uppercase cos PyS60 & Linux seem to always return uppercase
     # addresses
-    # can safely encode to ascii cos BT addresses are only in hex (pyobjc
-    # returns all strings in unicode)
-    return addr.replace("-", ":").encode('ascii').upper()
+    return addr.replace("-", ":").upper()
 
 def createbtdevaddr(addr):
     # in mac 10.5, can use BluetoothDeviceAddress directly
@@ -168,7 +166,7 @@ def interruptwait():
 
 class BBCocoaSleeper(NSObject):
     def init(self):
-        self = super().init()
+        self = objc.super(BBCocoaSleeper, self).init()
         self.timedout = False
         return self
 
@@ -199,7 +197,7 @@ class BBFileLikeObjectReader(NSObject):
     """
 
     def initWithFileLikeObject_(self, fileobj):
-        self = super().init()
+        self = objc.super(BBFileLikeObjectReader, self).init()
         self.__fileobj = fileobj
         return self
     initWithFileLikeObject_ = objc.selector(initWithFileLikeObject_,
@@ -225,7 +223,7 @@ class BBFileLikeObjectWriter(NSObject):
     """
 
     def initWithFileLikeObject_(self, fileobj):
-        self = super().init()
+        self = objc.super(BBFileLikeObjectWriter, self).init()
         self.__fileobj = fileobj
         return self
     initWithFileLikeObject_ = objc.selector(initWithFileLikeObject_,

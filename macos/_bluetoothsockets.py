@@ -763,7 +763,7 @@ class _ChannelEventListener(Foundation.NSObject):
     IOBluetoothRFCOMMChannel or IOBluetoothL2CAPChannel, and makes callbacks to
     a specified object when events occur.
     """
-
+    
     # note this is a NSObject "init", not a python object "__init__"
     def initWithDelegate_(self, cb_obj):
         """
@@ -784,7 +784,7 @@ class _ChannelEventListener(Foundation.NSObject):
         delegate as the argument to allow this listener to start receiving
         channel events. (This is the only option for server-spawned sockets.)
         """
-        self = super().init()
+        self = objc.super(_ChannelEventListener, self).init()
         if cb_obj is None:
             raise TypeError("callback object is None")
         self.__cb_obj = cb_obj
@@ -849,7 +849,7 @@ class _ChannelServerEventListener(Foundation.NSObject):
         - port: the channel or PSM that the server is listening on
         - proto: L2CAP or RFCOMM.
         """
-        self = super().init()
+        self = objc.super(_ChannelServerEventListener, self).init()
         if cb_obj is None:
             raise TypeError("callback object is None")
         self.__cb_obj = cb_obj

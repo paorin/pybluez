@@ -338,13 +338,13 @@ class OBEXClient:
 class _BBOBEXClientDelegate(NSObject):
 
     def initWithCallback_(self, cb_requestdone):
-        self = super().init()
+        self = objc.super(_BBOBEXClientDelegate, self).init()
         self._cb_requestdone = cb_requestdone
         return self
     initWithCallback_ = objc.selector(initWithCallback_, signature=b"@@:@")
 
     def __del__(self):
-        super().dealloc()
+        objc.super(_BBOBEXClientDelegate, self).dealloc()
 
     #
     # Delegate methods follow. objc signatures for all methods must be set
@@ -454,7 +454,7 @@ class BBOBEXObjectPushServer(NSObject):
         if not hasattr(fileobject, "write"):
             raise TypeError("fileobject must be file-like object with write() method")
 
-        self = super().init()
+        self = objc.super(_BBOBEXClientDelegate, self).init()
         self.__fileobject = fileobject
         self.__server = BBBluetoothOBEXServer.alloc().initWithIncomingRFCOMMChannel_delegate_(channel, self)
         #BBBluetoothOBEXServer.setDebug_(True)
@@ -495,7 +495,7 @@ class BBOBEXObjectPushServer(NSObject):
             raise OBEXError(_kOBEXGeneralError, "client did not send a file")
 
     def __del__(self):
-        super().dealloc()
+        objc.super(_BBOBEXClientDelegate, self).dealloc()
 
     #
     # BBBluetoothOBEXClientDelegate methods follow.

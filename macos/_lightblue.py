@@ -63,7 +63,7 @@ def findservices(addr=None, name=None, servicetype=None):
                     "error while finding devices: " + str(e)
             raise _lightbluecommon.BluetoothError(msg)
 
-        #print founddevices
+        #print(founddevices)
         addresses = [dev[0] for dev in founddevices]
     else:
         addresses = [addr]
@@ -526,9 +526,9 @@ def _getdevicetuple(iobtdevice):
 
 def _getservicetuple(servicerecord):
     """
-        Returns a (device-addr, service-channel, service-name) tuple from the given
-        IOBluetoothSDPServiceRecord.
-        """
+    Returns a (device-addr, service-channel, service-name) tuple from the given
+    IOBluetoothSDPServiceRecord.
+    """
     addr = _macutil.formatdevaddr(servicerecord.getDevice().getAddressString())
     name = servicerecord.getServiceName()
     try:
